@@ -37,8 +37,11 @@ export default function HomePage() {
 
   const fetchLotteries = async () => {
     try {
+      console.log('Fetching lotteries...')
       const response = await fetch('/api/lotteries')
+      console.log('Response status:', response.status)
       const data = await response.json()
+      console.log('Lotteries data:', data)
       
       if (response.ok) {
         setLotteries(data.lotteries || [])
