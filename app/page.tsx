@@ -38,7 +38,9 @@ export default function HomePage() {
   const fetchLotteries = async () => {
     try {
       console.log('Fetching lotteries...')
-      const response = await fetch('/api/lotteries')
+      // Use window.location.origin to get the full URL in client-side
+      const baseUrl = typeof window !== 'undefined' ? window.location.origin : ''
+      const response = await fetch(`${baseUrl}/api/lotteries`)
       console.log('Response status:', response.status)
       const data = await response.json()
       console.log('Lotteries data:', data)
