@@ -28,6 +28,8 @@ export default function LoginPage() {
     setError("")
 
     try {
+      console.log('Submitting login form with data:', formData)
+      
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: {
@@ -36,7 +38,9 @@ export default function LoginPage() {
         body: JSON.stringify(formData),
       })
 
+      console.log('Response status:', response.status)
       const data = await response.json()
+      console.log('Response data:', data)
 
       if (response.ok && data.success) {
         // Store auth data
@@ -45,15 +49,18 @@ export default function LoginPage() {
         localStorage.setItem("authToken", data.token)
         localStorage.setItem("userId", data.user.id)
         
+        console.log('Login successful, redirecting...')
         if (data.user.role === 'admin') {
           router.push("/admin")
         } else {
           router.push("/dashboard")
         }
       } else {
+        console.error('Login failed:', data.error)
         setError(data.error || "خطا در ورود")
       }
     } catch (err) {
+      console.error('Login error:', err)
       setError("خطا در ورود. لطفاً دوباره تلاش کنید.")
     } finally {
       setIsLoading(false)
