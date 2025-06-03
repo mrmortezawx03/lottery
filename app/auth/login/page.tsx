@@ -28,16 +28,30 @@ export default function LoginPage() {
     setError("")
 
     try {
-      // Simulate login API call
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      })
 
-      // Check if admin credentials
-      if (formData.phone === "09144191962" && formData.password === "admin123") {
-        localStorage.setItem("userRole", "admin")
+      const data = await response.json()
+
+      if (response.ok && data.success) {
+        // Store auth data
+        localStorage.setItem("userRole", data.user.role)
         localStorage.setItem("isLoggedIn", "true")
-        router.push("/admin")
+        localStorage.setItem("authToken", data.token)
+        localStorage.setItem("userId", data.user.id)
+        
+        if (data.user.role === 'admin') {
+          router.push("/admin")
+        } else {
+          router.push("/dashboard")
+        }
       } else {
-        setError("شماره همراه یا رمز عبور اشتباه است")
+        setError(data.error || "خطا در ورود")
       }
     } catch (err) {
       setError("خطا در ورود. لطفاً دوباره تلاش کنید.")
