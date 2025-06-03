@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -15,49 +15,98 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Ticket, Trophy, Users, DollarSign, Calendar, CreditCard, ArrowRight } from "lucide-react"
 
 export default function HomePage() {
+  const [lotteries, setLotteries] = useState([])
+  const [loading, setLoading] = useState(true)
   const [purchaseData, setPurchaseData] = useState({
     name: "",
     phone: "",
-    lotteryId: 0,
+    lotteryId: "",
     lotteryTitle: "",
     price: 0,
   })
   const [isProcessing, setIsProcessing] = useState(false)
+  const [purchaseResult, setPurchaseResult] = useState(null)
+
+  useEffect(() => {
+    fetchLotteries()
+  }, [])
+
+  const fetchLotteries = async () => {
+    try {
+      const response = await fetch('/api/lotteries')
+      const data = await response.json()
+      
+      if (response.ok) {
+        setLotteries(data.lotteries || [])
+      }
+    } catch (error) {
+      console.error('Error fetching lotteries:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("fa-IR").format(amount) + " ریال"
   }
 
   const handlePurchase = async () => {
+    if (!purchaseData.name || !purchaseData.phone || !purchaseData.lotteryId) {
+      return
+    }
+
     setIsProcessing(true)
+    setPurchaseResult(null)
 
     try {
-      // Simulate payment process
-      await new Promise((resolve) => setTimeout(resolve, 2000))
-
-      // Generate ticket number
-      const ticketNumber = `T-${Date.now().toString().slice(-6)}`
-
-      alert(`پرداخت با موفقیت انجام شد!
-شماره بلیط شما: ${ticketNumber}
-قرعه‌کشی: ${purchaseData.lotteryTitle}
-مبلغ پرداختی: ${formatCurrency(purchaseData.price)}
-
-این شماره را یادداشت کنید.`)
-
-      // Reset form
-      setPurchaseData({
-        name: "",
-        phone: "",
-        lotteryId: 0,
-        lotteryTitle: "",
-        price: 0,
+      const response = await fetch('/api/tickets', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          lotteryId: purchaseData.lotteryId,
+          buyerName: purchaseData.name,
+          buyerPhone: purchaseData.phone,
+        }),
       })
+
+      const data = await response.json()
+
+      if (response.ok && data.success) {
+        setPurchaseResult({
+          success: true,
+          ticketCode: data.ticket.ticketCode,
+          lotteryTitle: data.lotteryTitle,
+          ticketPrice: data.ticketPrice,
+        })
+
+        // Refresh lotteries to update sold tickets
+        fetchLotteries()
+
+        // Reset form
+        setPurchaseData({
+          name: "",
+          phone: "",
+          lotteryId: "",
+          lotteryTitle: "",
+          price: 0,
+        })
+      } else {
+        setPurchaseResult({
+          success: false,
+          error: data.error || "خطا در خرید بلیط"
+        })
+      }
     } catch (error) {
-      alert("خطا در پرداخت. لطفاً دوباره تلاش کنید.")
+      setPurchaseResult({
+        success: false,
+        error: "خطا در ارتباط با سرور"
+      })
     } finally {
       setIsProcessing(false)
     }
