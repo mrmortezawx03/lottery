@@ -1,0 +1,414 @@
+"use client"
+
+import type React from "react"
+
+import { useState, useRef, useEffect } from "react"
+import { useRouter, useParams } from "next/navigation"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { ArrowRight, Trophy, Upload, X, Image } from "lucide-react"
+
+export default function EditLotteryPage() {
+  const router = useRouter()
+  const params = useParams()
+  const lotteryId = params.id as string
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  
+  const [formData, setFormData] = useState({
+    title: "",
+    description: "",
+    prize: "",
+    prizeImage: "",
+    ticketPrice: "",
+    totalTickets: "",
+    drawDate: "",
+    drawTime: "",
+    status: "active"
+  })
+  const [isLoading, setIsLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [success, setSuccess] = useState(false)
+  const [error, setError] = useState("")
+  const [uploadingImage, setUploadingImage] = useState(false)
+
+  useEffect(() => {
+    if (lotteryId) {
+      fetchLottery()
+    }
+  }, [lotteryId])
+
+  const fetchLottery = async () => {
+    try {
+      const response = await fetch(`/api/lotteries/${lotteryId}`)
+      const data = await response.json()
+      
+      if (response.ok && data.lottery) {
+        const lottery = data.lottery
+        setFormData({
+          title: lottery.title || "",
+          description: lottery.description || "",
+          prize: lottery.prize || "",
+          prizeImage: lottery.prizeImage || "",
+          ticketPrice: lottery.ticketPrice?.toString() || "",
+          totalTickets: lottery.totalTickets?.toString() || "",
+          drawDate: lottery.drawDate ? new Date(lottery.drawDate).toISOString().split('T')[0] : "",
+          drawTime: lottery.drawTime || "",
+          status: lottery.status || "active"
+        })
+      } else {
+        setError("قرعه‌کشی یافت نشد")
+      }
+    } catch (error) {
+      setError("خطا در دریافت اطلاعات")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    // Check file size (5MB limit)
+    if (file.size > 5 * 1024 * 1024) {
+      setError("حجم فایل نباید بیشتر از ۵ مگابایت باشد")
+      return
+    }
+
+    // Check file type
+    if (!file.type.startsWith('image/')) {
+      setError("لطفاً فقط فایل تصویری انتخاب کنید")
+      return
+    }
+
+    setUploadingImage(true)
+    setError("")
+
+    try {
+      // Convert to base64
+      const reader = new FileReader()
+      reader.onload = async (e) => {
+        const base64 = e.target?.result as string
+        
+        try {
+          const token = localStorage.getItem("authToken")
+          
+          const response = await fetch('/api/upload', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+              image: base64,
+              filename: file.name
+            })
+          })
+
+          const data = await response.json()
+
+          if (response.ok && data.success) {
+            setFormData(prev => ({ ...prev, prizeImage: data.imageUrl }))
+          } else {
+            setError(data.error || "خطا در آپلود تصویر")
+          }
+        } catch (err) {
+          setError("خطا در آپلود تصویر")
+        } finally {
+          setUploadingImage(false)
+        }
+      }
+      
+      reader.readAsDataURL(file)
+    } catch (err) {
+      setError("خطا در خواندن فایل")
+      setUploadingImage(false)
+    }
+  }
+
+  const removeImage = () => {
+    setFormData(prev => ({ ...prev, prizeImage: "" }))
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ""
+    }
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsLoading(true)
+    setError("")
+
+    try {
+      const token = localStorage.getItem("authToken")
+      
+      const response = await fetch(`/api/lotteries/${lotteryId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(formData)
+      })
+
+      const data = await response.json()
+
+      if (response.ok && data.success) {
+        setSuccess(true)
+        setTimeout(() => {
+          router.push("/admin")
+        }, 2000)
+      } else {
+        setError(data.error || "خطا در به‌روزرسانی قرعه‌کشی")
+      }
+    } catch (error) {
+      setError("خطا در ارتباط با سرور")
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const formatCurrency = (amount: string) => {
+    const num = Number.parseInt(amount.replace(/,/g, ""))
+    if (isNaN(num)) return ""
+    return new Intl.NumberFormat("fa-IR").format(num)
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center" dir="rtl">
+        <div className="text-center">
+          <Trophy className="h-16 w-16 text-purple-600 mx-auto mb-4 animate-spin" />
+          <p className="text-lg text-gray-600">در حال بارگذاری...</p>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50" dir="rtl">
+      <header className="bg-white border-b">
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex items-center gap-2">
+            <Trophy className="h-8 w-8 text-purple-600" />
+            <h1 className="text-2xl font-bold text-purple-600">ویرایش قرعه‌کشی - اتوتقی زاده</h1>
+          </div>
+        </div>
+      </header>
+
+      <div className="container mx-auto px-4 py-8">
+        <div className="max-w-2xl mx-auto">
+          {success && (
+            <Alert className="mb-6 border-green-200 bg-green-50">
+              <AlertDescription className="text-green-800">
+                قرعه‌کشی با موفقیت به‌روزرسانی شد! در حال انتقال به پنل مدیریت...
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {error && (
+            <Alert className="mb-6 border-red-200 bg-red-50">
+              <AlertDescription className="text-red-800">
+                {error}
+              </AlertDescription>
+            </Alert>
+          )}
+
+          <Card>
+            <CardHeader>
+              <CardTitle>ویرایش اطلاعات قرعه‌کشی</CardTitle>
+              <CardDescription>فرم زیر را برای ویرایش قرعه‌کشی تکمیل کنید</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleSubmit} className="space-y-6">
+                <div className="space-y-2">
+                  <Label htmlFor="title">عنوان قرعه‌کشی</Label>
+                  <Input
+                    id="title"
+                    placeholder="مثال: قرعه‌کشی خودرو"
+                    value={formData.title}
+                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="description">توضیحات</Label>
+                  <Textarea
+                    id="description"
+                    placeholder="توضیحات کاملی از قرعه‌کشی و جایزه آن ارائه دهید..."
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    rows={4}
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="prize">جایزه</Label>
+                  <Input
+                    id="prize"
+                    placeholder="مثال: خودرو پژو پارس"
+                    value={formData.prize}
+                    onChange={(e) => setFormData({ ...formData, prize: e.target.value })}
+                    required
+                  />
+                </div>
+
+                {/* Image Upload Section */}
+                <div className="space-y-2">
+                  <Label>تصویر جایزه (اختیاری)</Label>
+                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-6">
+                    {formData.prizeImage ? (
+                      <div className="relative">
+                        <img 
+                          src={formData.prizeImage} 
+                          alt="تصویر جایزه"
+                          className="w-full h-48 object-cover rounded-lg"
+                        />
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="sm"
+                          className="absolute top-2 left-2"
+                          onClick={removeImage}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="text-center">
+                        <Image className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                        <div className="space-y-2">
+                          <p className="text-gray-600">تصویر جایزه را اینجا آپلود کنید</p>
+                          <p className="text-xs text-gray-500">فرمت‌های مجاز: JPG, PNG, GIF (حداکثر ۵ مگابایت)</p>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => fileInputRef.current?.click()}
+                            disabled={uploadingImage}
+                            className="mt-2"
+                          >
+                            {uploadingImage ? (
+                              "در حال آپلود..."
+                            ) : (
+                              <>
+                                <Upload className="h-4 w-4 ml-2" />
+                                انتخاب تصویر
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      className="hidden"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="ticketPrice">قیمت بلیط (ریال)</Label>
+                    <Input
+                      id="ticketPrice"
+                      type="number"
+                      placeholder="50000"
+                      value={formData.ticketPrice}
+                      onChange={(e) => setFormData({ ...formData, ticketPrice: e.target.value })}
+                      required
+                    />
+                    {formData.ticketPrice && (
+                      <p className="text-sm text-gray-500">{formatCurrency(formData.ticketPrice)} ریال</p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="totalTickets">تعداد کل بلیط‌ها</Label>
+                    <Input
+                      id="totalTickets"
+                      type="number"
+                      placeholder="1000"
+                      value={formData.totalTickets}
+                      onChange={(e) => setFormData({ ...formData, totalTickets: e.target.value })}
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="drawDate">تاریخ قرعه‌کشی</Label>
+                    <Input
+                      id="drawDate"
+                      type="date"
+                      value={formData.drawDate}
+                      onChange={(e) => setFormData({ ...formData, drawDate: e.target.value })}
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="drawTime">ساعت قرعه‌کشی</Label>
+                    <Input
+                      id="drawTime"
+                      type="time"
+                      value={formData.drawTime}
+                      onChange={(e) => setFormData({ ...formData, drawTime: e.target.value })}
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="status">وضعیت قرعه‌کشی</Label>
+                  <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value })}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="وضعیت را انتخاب کنید" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="active">فعال</SelectItem>
+                      <SelectItem value="inactive">غیرفعال</SelectItem>
+                      <SelectItem value="completed">تکمیل شده</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {formData.ticketPrice && formData.totalTickets && (
+                  <div className="p-4 bg-blue-50 rounded-lg">
+                    <h3 className="font-medium text-blue-900 mb-2">پیش‌بینی درآمد</h3>
+                    <p className="text-blue-800">
+                      حداکثر درآمد:{" "}
+                      {formatCurrency(
+                        (Number.parseInt(formData.ticketPrice) * Number.parseInt(formData.totalTickets)).toString(),
+                      )}{" "}
+                      ریال
+                    </p>
+                  </div>
+                )}
+
+                <div className="flex gap-4">
+                  <Button type="button" variant="outline" onClick={() => router.push("/admin")} className="flex-1">
+                    انصراف
+                  </Button>
+                  <Button type="submit" disabled={isLoading} className="flex-1 flex items-center justify-center gap-2">
+                    {isLoading ? "در حال به‌روزرسانی..." : "به‌روزرسانی قرعه‌کشی"}
+                    <ArrowRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </div>
+  )
+}
