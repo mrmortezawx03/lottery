@@ -137,8 +137,8 @@ export default function AdminDashboard() {
               <DollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{formatCurrency(totalRevenue)}</div>
-              <p className="text-xs text-muted-foreground">+۲۰.۱% نسبت به ماه گذشته</p>
+              <div className="text-2xl font-bold">{formatCurrency(stats.totalRevenue)}</div>
+              <p className="text-xs text-muted-foreground">از فروش بلیط‌ها</p>
             </CardContent>
           </Card>
 
@@ -148,8 +148,8 @@ export default function AdminDashboard() {
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{totalUsers.toLocaleString("fa-IR")}</div>
-              <p className="text-xs text-muted-foreground">+۱۸۰ کاربر جدید این ماه</p>
+              <div className="text-2xl font-bold">{stats.totalUsers.toLocaleString("fa-IR")}</div>
+              <p className="text-xs text-muted-foreground">خریداران بلیط</p>
             </CardContent>
           </Card>
 
@@ -159,8 +159,8 @@ export default function AdminDashboard() {
               <Trophy className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{activeLotteries}</div>
-              <p className="text-xs text-muted-foreground">۲ قرعه‌کشی در انتظار</p>
+              <div className="text-2xl font-bold">{stats.activeLotteries}</div>
+              <p className="text-xs text-muted-foreground">از {lotteries.length} قرعه‌کشی</p>
             </CardContent>
           </Card>
 
@@ -170,8 +170,8 @@ export default function AdminDashboard() {
               <Ticket className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{soldTickets.toLocaleString("fa-IR")}</div>
-              <p className="text-xs text-muted-foreground">+۲۰۱ بلیط امروز</p>
+              <div className="text-2xl font-bold">{stats.totalTickets.toLocaleString("fa-IR")}</div>
+              <p className="text-xs text-muted-foreground">کل بلیط‌های فروخته شده</p>
             </CardContent>
           </Card>
         </div>
@@ -187,59 +187,93 @@ export default function AdminDashboard() {
           <TabsContent value="lotteries" className="space-y-4">
             <div className="flex justify-between items-center">
               <h2 className="text-2xl font-bold">مدیریت قرعه‌کشی‌ها</h2>
-              <Button className="flex items-center gap-2">
-                <Plus className="h-4 w-4" />
-                قرعه‌کشی جدید
-              </Button>
+              <Link href="/admin/create-lottery">
+                <Button className="flex items-center gap-2">
+                  <Plus className="h-4 w-4" />
+                  قرعه‌کشی جدید
+                </Button>
+              </Link>
             </div>
 
             <div className="grid gap-4">
-              {lotteries.map((lottery) => (
-                <Card key={lottery.id}>
-                  <CardHeader>
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <CardTitle className="flex items-center gap-2">
-                          {lottery.title}
-                          <Badge variant={lottery.status === "فعال" ? "default" : "secondary"}>{lottery.status}</Badge>
-                        </CardTitle>
-                        <CardDescription className="mt-2">{lottery.description}</CardDescription>
-                      </div>
-                      <div className="flex gap-2">
-                        <Button size="sm" variant="outline">
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        <Button size="sm" variant="outline">
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button size="sm" variant="outline">
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                      <div>
-                        <span className="text-muted-foreground">قیمت بلیط:</span>
-                        <div className="font-medium">{formatCurrency(lottery.ticketPrice)}</div>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">تاریخ قرعه‌کشی:</span>
-                        <div className="font-medium">{lottery.drawDate}</div>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">بلیط‌های فروخته شده:</span>
-                        <div className="font-medium">{lottery.soldTickets.toLocaleString("fa-IR")}</div>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">درآمد:</span>
-                        <div className="font-medium">{formatCurrency(lottery.ticketPrice * lottery.soldTickets)}</div>
-                      </div>
-                    </div>
+              {lotteries.length === 0 ? (
+                <Card>
+                  <CardContent className="flex flex-col items-center justify-center py-12">
+                    <Trophy className="h-16 w-16 text-gray-400 mb-4" />
+                    <p className="text-gray-500 text-lg">هیچ قرعه‌کشی موجود نیست</p>
+                    <Link href="/admin/create-lottery">
+                      <Button className="mt-4 flex items-center gap-2">
+                        <Plus className="h-4 w-4" />
+                        اولین قرعه‌کشی را ایجاد کنید
+                      </Button>
+                    </Link>
                   </CardContent>
                 </Card>
-              ))}
+              ) : (
+                lotteries.map((lottery) => (
+                  <Card key={lottery._id}>
+                    <CardHeader>
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <CardTitle className="flex items-center gap-2">
+                            {lottery.title}
+                            <Badge variant={lottery.status === "active" ? "default" : "secondary"}>
+                              {lottery.status === "active" ? "فعال" : "غیرفعال"}
+                            </Badge>
+                          </CardTitle>
+                          <CardDescription className="mt-2">{lottery.description}</CardDescription>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button size="sm" variant="outline">
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Link href={`/admin/edit-lottery/${lottery._id}`}>
+                            <Button size="sm" variant="outline">
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                          </Link>
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => handleDeleteLottery(lottery._id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                        <div>
+                          <span className="text-muted-foreground">قیمت بلیط:</span>
+                          <div className="font-medium">{formatCurrency(lottery.ticketPrice)}</div>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">تاریخ قرعه‌کشی:</span>
+                          <div className="font-medium">{new Date(lottery.drawDate).toLocaleDateString('fa-IR')}</div>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">بلیط‌های فروخته شده:</span>
+                          <div className="font-medium">{lottery.soldTickets.toLocaleString("fa-IR")} / {lottery.totalTickets.toLocaleString("fa-IR")}</div>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">درآمد:</span>
+                          <div className="font-medium">{formatCurrency(lottery.ticketPrice * lottery.soldTickets)}</div>
+                        </div>
+                      </div>
+                      {lottery.prizeImage && (
+                        <div className="mt-4">
+                          <img 
+                            src={lottery.prizeImage} 
+                            alt={lottery.title}
+                            className="w-32 h-20 object-cover rounded-lg"
+                          />
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                ))
+              )}
             </div>
           </TabsContent>
 
@@ -369,7 +403,7 @@ export default function AdminDashboard() {
                       rows={3}
                       defaultValue="سلام {name}
 بلیط شما با موفقیت خریداری شد.
-شماره بلیط: {ticket_number}
+کد بلیط: {ticket_code}
 قرعه‌کشی: {lottery_title}
 تاریخ قرعه‌کشی: {draw_date}
 قرعه‌کشی اتوتقی زاده"
@@ -382,7 +416,7 @@ export default function AdminDashboard() {
                       rows={3}
                       defaultValue="تبریک {name}!
 شما در قرعه‌کشی {lottery_title} برنده شدید.
-شماره بلیط برنده: {ticket_number}
+کد بلیط برنده: {ticket_code}
 جهت دریافت جایزه با ما تماس بگیرید.
 قرعه‌کشی اتوتقی زاده"
                     />
