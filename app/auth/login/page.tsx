@@ -79,6 +79,11 @@ export default function LoginPage() {
           </div>
           <CardTitle className="text-2xl">ورود ادمین - قرعه‌کشی اتوتقی زاده</CardTitle>
           <CardDescription>برای دسترسی به پنل مدیریت وارد شوید</CardDescription>
+          <div className="mt-2 p-3 bg-blue-50 rounded-lg text-sm text-blue-800">
+            <strong>اطلاعات ورود پیش‌فرض:</strong><br />
+            شماره همراه: 09144191962<br />
+            رمز عبور: admin123
+          </div>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
