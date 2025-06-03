@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -10,14 +10,16 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { ArrowRight, Trophy } from "lucide-react"
+import { ArrowRight, Trophy, Upload, X, Image } from "lucide-react"
 
 export default function CreateLotteryPage() {
   const router = useRouter()
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const [formData, setFormData] = useState({
     title: "",
     description: "",
     prize: "",
+    prizeImage: "",
     ticketPrice: "",
     totalTickets: "",
     drawDate: "",
@@ -25,20 +27,106 @@ export default function CreateLotteryPage() {
   })
   const [isLoading, setIsLoading] = useState(false)
   const [success, setSuccess] = useState(false)
+  const [error, setError] = useState("")
+  const [uploadingImage, setUploadingImage] = useState(false)
+
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    // Check file size (5MB limit)
+    if (file.size > 5 * 1024 * 1024) {
+      setError("حجم فایل نباید بیشتر از ۵ مگابایت باشد")
+      return
+    }
+
+    // Check file type
+    if (!file.type.startsWith('image/')) {
+      setError("لطفاً فقط فایل تصویری انتخاب کنید")
+      return
+    }
+
+    setUploadingImage(true)
+    setError("")
+
+    try {
+      // Convert to base64
+      const reader = new FileReader()
+      reader.onload = async (e) => {
+        const base64 = e.target?.result as string
+        
+        try {
+          const token = localStorage.getItem("authToken")
+          
+          const response = await fetch('/api/upload', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+              image: base64,
+              filename: file.name
+            })
+          })
+
+          const data = await response.json()
+
+          if (response.ok && data.success) {
+            setFormData(prev => ({ ...prev, prizeImage: data.imageUrl }))
+          } else {
+            setError(data.error || "خطا در آپلود تصویر")
+          }
+        } catch (err) {
+          setError("خطا در آپلود تصویر")
+        } finally {
+          setUploadingImage(false)
+        }
+      }
+      
+      reader.readAsDataURL(file)
+    } catch (err) {
+      setError("خطا در خواندن فایل")
+      setUploadingImage(false)
+    }
+  }
+
+  const removeImage = () => {
+    setFormData(prev => ({ ...prev, prizeImage: "" }))
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ""
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
+    setError("")
 
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-      setSuccess(true)
-      setTimeout(() => {
-        router.push("/admin")
-      }, 2000)
+      const token = localStorage.getItem("authToken")
+      
+      const response = await fetch('/api/lotteries', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(formData)
+      })
+
+      const data = await response.json()
+
+      if (response.ok && data.success) {
+        setSuccess(true)
+        setTimeout(() => {
+          router.push("/admin")
+        }, 2000)
+      } else {
+        setError(data.error || "خطا در ایجاد قرعه‌کشی")
+      }
     } catch (error) {
-      console.error("Error creating lottery:", error)
+      setError("خطا در ارتباط با سرور")
     } finally {
       setIsLoading(false)
     }
