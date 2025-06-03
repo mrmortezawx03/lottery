@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -10,59 +11,106 @@ import { Trophy, Plus, DollarSign, Users, Ticket, LogOut, Eye, Edit, Trash2 } fr
 
 export default function AdminDashboard() {
   const router = useRouter()
-  const [totalRevenue, setTotalRevenue] = useState(15750000)
-  const [totalUsers, setTotalUsers] = useState(1247)
-  const [activeLotteries, setActiveLotteries] = useState(3)
-  const [soldTickets, setSoldTickets] = useState(892)
+  const [stats, setStats] = useState({
+    totalRevenue: 0,
+    totalUsers: 0,
+    activeLotteries: 0,
+    totalTickets: 0
+  })
+  const [lotteries, setLotteries] = useState([])
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    // Check authentication
     const isLoggedIn = localStorage.getItem("isLoggedIn")
     const userRole = localStorage.getItem("userRole")
 
     if (!isLoggedIn || userRole !== "admin") {
       router.push("/auth/login")
+      return
     }
+
+    fetchData()
   }, [router])
+
+  const fetchData = async () => {
+    try {
+      const token = localStorage.getItem("authToken")
+      
+      // Fetch stats
+      const statsResponse = await fetch('/api/admin/stats', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+      
+      if (statsResponse.ok) {
+        const statsData = await statsResponse.json()
+        setStats(statsData)
+      }
+
+      // Fetch lotteries
+      const lotteriesResponse = await fetch('/api/lotteries')
+      if (lotteriesResponse.ok) {
+        const lotteriesData = await lotteriesResponse.json()
+        setLotteries(lotteriesData.lotteries || [])
+      }
+    } catch (error) {
+      console.error('Error fetching data:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const handleLogout = () => {
     localStorage.removeItem("isLoggedIn")
     localStorage.removeItem("userRole")
+    localStorage.removeItem("authToken")
+    localStorage.removeItem("userId")
     router.push("/")
+  }
+
+  const handleDeleteLottery = async (lotteryId) => {
+    if (!confirm('آیا مطمئن هستید که می‌خواهید این قرعه‌کشی را حذف کنید؟')) {
+      return
+    }
+
+    try {
+      const token = localStorage.getItem("authToken")
+      
+      const response = await fetch(`/api/lotteries/${lotteryId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      if (response.ok) {
+        alert('قرعه‌کشی با موفقیت حذف شد')
+        fetchData() // Refresh data
+      } else {
+        const data = await response.json()
+        alert(data.error || 'خطا در حذف قرعه‌کشی')
+      }
+    } catch (error) {
+      alert('خطا در ارتباط با سرور')
+    }
   }
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("fa-IR").format(amount) + " ریال"
   }
 
-  const lotteries = [
-    {
-      id: 1,
-      title: "قرعه‌کشی خودرو",
-      description: "برنده یک خودرو پژو پارس شوید",
-      ticketPrice: 50000,
-      drawDate: "۱۵ آذر ۱۴۰۳",
-      status: "فعال",
-      soldTickets: 245,
-    },
-    {
-      id: 2,
-      title: "قرعه‌کشی طلا",
-      description: "برنده ۱۰ سکه طلای تمام بهار آزادی",
-      ticketPrice: 20000,
-      drawDate: "۲۰ آذر ۱۴۰۳",
-      status: "فعال",
-      soldTickets: 387,
-    },
-    {
-      id: 3,
-      title: "قرعه‌کشی نقدی",
-      description: "برنده ۱۰ میلیون ریال نقد شوید",
-      ticketPrice: 10000,
-      drawDate: "۲۵ آذر ۱۴۰۳",
-      status: "فعال",
-      soldTickets: 260,
-    },
-  ]
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center" dir="rtl">
+        <div className="text-center">
+          <Trophy className="h-16 w-16 text-purple-600 mx-auto mb-4 animate-spin" />
+          <p className="text-lg text-gray-600">در حال بارگذاری...</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-gray-50" dir="rtl">
