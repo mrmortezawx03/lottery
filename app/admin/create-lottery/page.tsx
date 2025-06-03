@@ -159,6 +159,14 @@ export default function CreateLotteryPage() {
             </Alert>
           )}
 
+          {error && (
+            <Alert className="mb-6 border-red-200 bg-red-50">
+              <AlertDescription className="text-red-800">
+                {error}
+              </AlertDescription>
+            </Alert>
+          )}
+
           <Card>
             <CardHeader>
               <CardTitle>اطلاعات قرعه‌کشی</CardTitle>
@@ -198,6 +206,62 @@ export default function CreateLotteryPage() {
                     onChange={(e) => setFormData({ ...formData, prize: e.target.value })}
                     required
                   />
+                </div>
+
+                {/* Image Upload Section */}
+                <div className="space-y-2">
+                  <Label>تصویر جایزه (اختیاری)</Label>
+                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-6">
+                    {formData.prizeImage ? (
+                      <div className="relative">
+                        <img 
+                          src={formData.prizeImage} 
+                          alt="تصویر جایزه"
+                          className="w-full h-48 object-cover rounded-lg"
+                        />
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="sm"
+                          className="absolute top-2 left-2"
+                          onClick={removeImage}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="text-center">
+                        <Image className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                        <div className="space-y-2">
+                          <p className="text-gray-600">تصویر جایزه را اینجا آپلود کنید</p>
+                          <p className="text-xs text-gray-500">فرمت‌های مجاز: JPG, PNG, GIF (حداکثر ۵ مگابایت)</p>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => fileInputRef.current?.click()}
+                            disabled={uploadingImage}
+                            className="mt-2"
+                          >
+                            {uploadingImage ? (
+                              "در حال آپلود..."
+                            ) : (
+                              <>
+                                <Upload className="h-4 w-4 ml-2" />
+                                انتخاب تصویر
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      className="hidden"
+                    />
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
