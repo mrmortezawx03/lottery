@@ -14,8 +14,8 @@ import { Trophy, Eye, EyeOff } from "lucide-react"
 
 export default function LoginPage() {
   const [formData, setFormData] = useState({
-    phone: "",
-    password: "",
+    phone: "09144191962",
+    password: "admin123",
   })
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState("")
